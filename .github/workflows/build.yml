@@ -1,0 +1,44 @@
+name: "Build"
+
+on: ['push']
+
+jobs:
+  build:
+    name: "CI"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup PHP 8.1 with PECL
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+      - uses: actions/checkout@v1
+
+      - name: Shutdown default MySQL (SUDO)
+        run: sudo service mysql stop
+
+      - name: Setting MySQL
+        uses: mirromutth/mysql-action@v1.1
+        with:
+          mysql version: "8.0"
+          mysql root password: "secret_password"
+          mysql database: "alimentalos"
+
+      - name: Waiting for MySQL
+        run: |
+          while ! mysqladmin ping --host=127.0.0.1 --password=secret_password --silent --show-warnings=FALSE; do
+            sleep 1
+          done
+
+      - name: Environment
+        run: php -r "file_exists('.env') || copy('.env.example', '.env');"
+
+      - name: Composer Dependencies
+        run: |
+          composer install --no-interaction --prefer-dist
+
+      - name: Encryption Keys
+        run: |
+          php artisan key:generate
+
+      - name: Migrations
+        run: php artisan migrate
